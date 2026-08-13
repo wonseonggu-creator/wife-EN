@@ -1,0 +1,44 @@
+name: Build APK
+on: [push, workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore folder structure
+        run: |
+          if grep -q "applicationId" "build.gradle"; then
+            APP="build.gradle"; ROOT="build (1).gradle"
+          else
+            APP="build (1).gradle"; ROOT="build.gradle"
+          fi
+          mkdir -p app/src/main/java/com/wons/app
+          mkdir -p app/src/main/res/values app/src/main/res/drawable app/src/main/res/mipmap-anydpi-v26
+          mkdir -p app/src/main/assets
+          cp "$APP" app/build.gradle
+          cp "$ROOT" root.gradle && mv root.gradle build.gradle
+          cp MainActivity.kt app/src/main/java/com/wons/app/
+          cp AndroidManifest.xml app/src/main/
+          cp strings.xml colors.xml app/src/main/res/values/
+          cp ic_fg.xml app/src/main/res/drawable/
+          cp ic_launcher.xml app/src/main/res/mipmap-anydpi-v26/
+          cp wons.html app/src/main/assets/
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.7"
+
+      - name: Build debug APK
+        run: gradle assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Wons-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
