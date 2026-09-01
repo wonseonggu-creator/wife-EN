@@ -6,9 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="원.NGLISH">
+<meta name="apple-mobile-web-app-title" content="WON-GLISH">
 <meta name="theme-color" content="#DB2777">
-<title>원.NGLISH — 每天10分钟英语</title>
+<title>WON-GLISH — 每天10分钟英语</title>
 <link rel="manifest" id="mf">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -351,7 +351,7 @@ button:focus-visible,.sw:focus-visible{outline:2.5px solid var(--blue);outline-o
 <div class="app">
 
   <div class="hdr" id="hdr">
-    <div class="logo">원<b>.NGLISH</b></div>
+    <div class="logo">WON<b>-GLISH</b></div>
     <div class="hdr-right">
       <span class="pill" id="p-xp">0 XP</span>
       <span class="pill streak" id="p-streak">
@@ -1092,6 +1092,46 @@ function typeHint(){
   $("#thint").textContent="  "+ws.slice(0,CUR.hint).join(" ")+" ...";
 }
 function norm(s){return s.toLowerCase().replace(/[.!?,']/g,"").replace(/\s+/g," ").trim()}
+function normLoose(s){
+  const M={"im":"i am","dont":"do not","doesnt":"does not","didnt":"did not","cant":"cannot","isnt":"is not","arent":"are not","havent":"have not","hasnt":"has not","couldnt":"could not","wouldnt":"would not","youre":"you are","theyre":"they are","thats":"that is","whats":"what is","lets":"let us","i'm":"i am","it's":"it is","that's":"that is","there's":"there is","i'd":"i would","i'll":"i will","i've":"i have","you're":"you are","don't":"do not","doesn't":"does not","didn't":"did not","can't":"cannot","won't":"will not","let's":"let us","what's":"what is","how's":"how is","he's":"he is","she's":"she is","we're":"we are","they're":"they are","isn't":"is not","aren't":"are not","haven't":"have not","hasn't":"has not","couldn't":"could not","wouldn't":"would not","you'd":"you would","you'll":"you will","we'll":"we will"};
+  return s.toLowerCase().replace(/[.!?,]/g," ").split(/\s+/).filter(Boolean).map(w=>M[w]||w).join(" ");
+}
+function wordsOK(aw,tw){ // 단어 단위 비교 — 짧은 문법 단어는 정확히, 긴 단어만 오타 1자 허용
+  if(aw.length!==tw.length)return false;
+  let typos=0;
+  for(let i=0;i<aw.length;i++){
+    if(aw[i]===tw[i])continue;
+    if(aw[i].length>=5&&tw[i].length>=5&&lev(aw[i],tw[i])<=1&&++typos<=2)continue;
+    return false;
+  }
+  return true;
+}
+function typeOK(ans,target){
+  const A=normLoose(ans).split(" "),T=normLoose(target).split(" ");
+  if(wordsOK(A,T))return true;
+  const st=w=>!["a","an","the","please"].includes(w);
+  return wordsOK(A.filter(st),T.filter(st));
+}
+async function aiCheck(v,c){
+  const u=srvUrl();
+  if(u){
+    const b=$("#chk");if(b){b.disabled=true;b.textContent="AI 判定中...";}
+    try{
+      const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),7000);
+      const r=await fetch(u+"/api/check",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({meaning:c.p[1],target:c.p[0],answer:v}),signal:ctl.signal});
+      clearTimeout(tm);
+      const j=await r.json();
+      if(j&&(j.ok===true||j.ok===false)){
+        grade(j.ok,c.st,c.p[0],c.p[1]);if(j.ok)speak(c.p[0]);
+        const btn=document.querySelector("#sheet .btn-chk");
+        if(btn&&j.why)btn.insertAdjacentHTML("beforebegin",'<div class="fb-s">AI: '+escH(j.why)+'</div>');
+        return;
+      }
+    }catch(e){}
+  }
+  grade(false,c.st,c.p[0],c.p[1]);
+}
 function lev(a,b){
   const m=Array.from({length:a.length+1},(_,i)=>[i,...Array(b.length).fill(0)]);
   for(let j=0;j<=b.length;j++)m[0][j]=j;
@@ -1151,10 +1191,9 @@ function doCheck(){
     const ok=norm(made)===norm(c.p[0]);
     grade(ok,c.st,c.p[0],c.p[1]);if(ok)speak(c.p[0]);
   }else if(c.mode==="type"){
-    const v=$("#tin").value,d=lev(norm(v),norm(c.p[0]));
-    const ok=d<=2;
-    const extra=ok&&d>0?'<div class="fb-s">基本正确(允许小笔误)</div>':"";
-    grade(ok,c.st,c.p[0],c.p[1]);if(ok)speak(c.p[0]);
+    const v=$("#tin").value;
+    if(typeOK(v,c.p[0])){grade(true,c.st,c.p[0],c.p[1]);speak(c.p[0]);}
+    else aiCheck(v,c);
   }else if(c.mode==="gq"){
     const ok=c.sel===c.ans;
     document.querySelectorAll(".opt").forEach((o,i)=>{if(i===c.ans)o.classList.add("ok");else if(i===c.sel&&!ok)o.classList.add("no")});
@@ -1351,10 +1390,10 @@ function resetAll(){
 const DEF_FACE=[
 '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#FFE9F0"/><circle cx="50" cy="56" r="34" fill="#FFE3CE"/><path d="M14 58 Q12 16 50 14 Q88 16 86 58 Q86 40 74 32 Q60 24 40 27 Q22 31 14 58Z" fill="#4A382E"/><circle cx="38" cy="56" r="4.4" fill="#2b2b2b"/><circle cx="62" cy="56" r="4.4" fill="#2b2b2b"/><path d="M43 69 Q50 75 57 69" stroke="#2b2b2b" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="28" cy="64" r="5" fill="#FFB9CB" opacity=".75"/><circle cx="72" cy="64" r="5" fill="#FFB9CB" opacity=".75"/></svg>',
 '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="#EAF2FF"/><circle cx="17" cy="42" r="10" fill="#3B2C24"/><circle cx="83" cy="42" r="10" fill="#3B2C24"/><circle cx="50" cy="56" r="34" fill="#FFE3CE"/><path d="M16 54 Q16 18 50 16 Q84 18 84 54 Q80 36 66 30 Q52 25 38 29 Q24 34 16 54Z" fill="#3B2C24"/><circle cx="38" cy="56" r="4.4" fill="#2b2b2b"/><circle cx="62" cy="56" r="4.4" fill="#2b2b2b"/><path d="M42 68 Q50 76 58 68" stroke="#2b2b2b" stroke-width="3" fill="none" stroke-linecap="round"/><circle cx="28" cy="64" r="5" fill="#FFB9CB" opacity=".75"/><circle cx="72" cy="64" r="5" fill="#FFB9CB" opacity=".75"/></svg>'];
-const PRAISE=["妈妈真棒!","爱你哦妈妈 ♥","我们妈妈最厉害!","哇,妈妈有两下子!","不愧是我妈!","太棒了!","啪啪啪,鼓掌!","妈妈是天才吧?","妈妈好帅!","都可以当老师了!"];
-const CHEERUP=["没关系妈妈,再来!","可惜~再试一次!","加油妈妈!","错了也没关系!","哎呀~就差一点!","集中集中!","妈妈加油!","慢慢再读一遍~"];
-const COMBOP=["厉害了妈妈!连续答对!","妈妈今天状态爆棚!","势不可挡!"];
-const DONEP=["今天也完成啦,妈妈!","明天也一起学吧!","我们最为妈妈骄傲!"];
+const PRAISE=["妈妈真棒!","爱你哦妈妈 ♥","我们妈妈最厉害!","哇,妈妈有两下子!","不愧是我妈!","太棒了!","啪啪啪,鼓掌!","妈妈是天才吧?","妈妈好帅!","都可以当老师了!","妈妈状态爆棚!","今天手感真好!","发音肯定也很棒!","这水平快赶上母语了!","厉害厉害!","为妈妈骄傲!","一点都没错!","偷偷用功了吧?","哇,一下就答对了!","妈妈真了不起!","要跟爸爸炫耀一下!","实力在进步哦!","比昨天更厉害了!","这题都能答对!","掌声送给妈妈~!","妈妈最棒最棒!","简直完美!","可以去美国了!","是不是比我还厉害?","今天也在成长!"];
+const CHEERUP=["没关系妈妈,再来!","可惜~再试一次!","加油妈妈!","错了也没关系!","哎呀~就差一点!","集中集中!","妈妈加油!","慢慢再读一遍~","错了才会进步~","下次一定能对!","妈妈打起精神~!","哎哟,失手了!","这题有点难吧?","深呼吸一下!","没事没事!","谁都会出错!","别放弃妈妈!","啊~就差一步!","一点点差距而已!","再看一遍就懂了!","难吧?我也觉得难~","好好看提示哦!","稳住妈妈!","错题也是学习!","刚才是不是混了?","被陷阱骗到啦~","冷静再来一次!","妈妈一定可以!","这个没见过吧~?","坚持到最后!"];
+const COMBOP=["厉害了妈妈!连续答对!","妈妈今天状态爆棚!","势不可挡!","连对停不下来!","开挂了吧妈妈!","谁来拦一下~!"];
+const DONEP=["今天也完成啦,妈妈!","明天也一起学吧!","我们最为妈妈骄傲!","今天的学习结束~辛苦啦!","坚持就是最棒的!","爱你妈妈,明天见!"];
 let CHT=0,LAST_R="";
 function faceHTML(i){const g=S.girls[i];return g.img?'<img src="'+g.img+'" alt="">':DEF_FACE[i]}
 const R_HAPPY=["r-jump","r-spin","r-flash","r-dance","r-pop","r-clap","r-run"];
@@ -1520,9 +1559,9 @@ async function autoSync(){
 }
 
 /* ───────── PWA ───────── */
-const ICON="data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#EC4899"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient></defs><rect width="100" height="100" rx="24" fill="url(#g)"/><text x="50" y="67" font-size="44" font-family="sans-serif" font-weight="800" fill="#fff" text-anchor="middle">원</text></svg>');
+const ICON="data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#EC4899"/><stop offset="1" stop-color="#8B5CF6"/></linearGradient></defs><rect width="100" height="100" rx="24" fill="url(#g)"/><text x="50" y="67" font-size="44" font-family="sans-serif" font-weight="800" fill="#fff" text-anchor="middle">W</text></svg>');
 $("#mf").href="data:application/manifest+json,"+encodeURIComponent(JSON.stringify({
-  name:"원.NGLISH — 每天10分钟英语",short_name:"원.NGLISH",start_url:".",display:"standalone",
+  name:"WON-GLISH — 每天10分钟英语",short_name:"WON-GLISH",start_url:".",display:"standalone",
   background_color:"#FFFFFF",theme_color:"#DB2777",orientation:"portrait",
   icons:[{src:ICON,sizes:"192x192",type:"image/svg+xml"},{src:ICON,sizes:"512x512",type:"image/svg+xml"}]
 }));
